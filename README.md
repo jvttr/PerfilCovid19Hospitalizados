@@ -1,0 +1,6 @@
+## Perfil dos casos hospitalizados decorrentes da COVID 19 em adultos e idosos no Município de Maringá/PR
+
+Estudo transversal, de caráter descritivo, vinculado ao projeto de pesquisa intitulado: “Perfil dos casos hospitalizados decorrentes da COVID 19 em adultos e idosos no Município de Maringá/PR”, do curso de Graduação em Estatística da Universidade Estadual de Maringá (UEM).
+O Ministério da Saúde (MS), por meio da Secretaria de Vigilância em Saúde (SVS), desenvolve a vigilância da Síndrome Respiratória Aguda Grave (SRAG) no Brasil, desde a pandemia de Influenza A(H1N1). A partir disso, a vigilância de SRAG foi implantada na rede de vigilância de Influenza e outros vírus respiratórios. Os dados são de domínio público e estão disponíveis no site https://opendatasus.saude.gov.br/ com atualização em 20 de Setembro de 2023. 
+Foram incluídos no estudo os pacientes adultos e idosos (de 18 anos a 59 anos e de 60 anos ou mais) com diagnóstico confirmado de Síndrome Respiratória Aguda Grave (SRAG) por COVID-19, hospitalizados na cidade de Maringá-Pr da região sul do Brasil no período de 01/01/2021 a 01/06/2023 a partir das informações presentes na ficha de notificação SRAG, e avaliados pelo setor da internação, enfermaria e Unidade de Terapia Intensiva (UTI), segundo as características sociodemográficas e clínicas.
+
