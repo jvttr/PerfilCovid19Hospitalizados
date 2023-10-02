@@ -1,19 +1,176 @@
 ---
-title: "R Notebook"
+title: "Perfil dos casos hospitalizados decorrentes da COVID-19 no Município de Maringá/PR"
 output: html_notebook
 ---
+Estudo transversal, de caráter descritivo, vinculado ao projeto de pesquisa intitulado: “Perfil dos casos hospitalizados decorrentes da COVID-19 no Município de Maringá/PR”, do curso de Graduação em Estatística da Universidade Estadual de Maringá (UEM).
+O Ministério da Saúde (MS), por meio da Secretaria de Vigilância em Saúde (SVS), desenvolve a vigilância da Síndrome Respiratória Aguda Grave (SRAG) no Brasil, desde a pandemia de Influenza A(H1N1). A partir disso, a vigilância de SRAG foi implantada na rede de vigilância de Influenza e outros vírus respiratórios. Os dados são de domínio público e estão disponíveis no site https://opendatasus.saude.gov.br/dataset/srag-2021-a-2023 com atualização em 20 de Setembro de 2023. 
+Foram incluídos no estudo os pacientes adultos e idosos (de 18 anos a 59 anos e de 60 anos ou mais) com diagnóstico confirmado de Síndrome Respiratória Aguda Grave (SRAG) por COVID-19, hospitalizados na cidade de Maringá-Pr da região sul do Brasil no período de 01/01/2021 a 01/06/2023 a partir das informações presentes na ficha de notificação SRAG, e avaliados pelo setor da internação, enfermaria e Unidade de Terapia Intensiva (UTI), segundo as características sociodemográficas e clínicas.
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
-
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
 
 ```{r}
-plot(cars)
+# Bibliotecas usadas para esta analise
+
+library(data.table)
+library(lubridate)
+library(writexl)
 ```
 
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+```{r}
+# Importando a base de dados SRAG 2020 para o R usando a funcao fread para bases grandes que estao em .csv
 
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+dados21   <- fread(paste(dirname(getwd()),"/dados/INFLUD21.csv", sep=""), sep=";", dec=",", header=TRUE)
+dados22   <- fread(paste(dirname(getwd()),"/dados/INFLUD22.csv", sep=""), sep=";", dec=",", header=TRUE)
+dados23   <- fread(paste(dirname(getwd()),"/dados/INFLUD23.csv", sep=""), sep=";", dec=",", header=TRUE)
 
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+# Juntando as bases de dados 2020, 2021 e 2022 usando a funcao "merge"
 
+dados_21_22 <- merge(dados21, dados22, all = TRUE)
+rm(dados21);rm(dados22)
+dados <- merge(dados_21_22, dados23, all = TRUE)
+rm(dados_21_22);rm(dados23)
+
+# Filtros ou criterios de elegibilidade (ou de inclusao e exclusao)
+
+dados <- subset(dados, CO_MUN_RES == 411520)
+dados <- subset(dados, HOSPITAL == 1)
+dados <- subset(dados, CLASSI_FIN == 5)
+dados <- subset(dados, (UTI == 1) | (UTI == 2))
+dados <- subset(dados, (SUPORT_VEN == 1) | (SUPORT_VEN == 2) | (SUPORT_VEN == 3))
+dados <- subset(dados, (SUPORT_VEN == 1) | (SUPORT_VEN == 2) | (SUPORT_VEN == 3))
+dados <- subset(dados, (CS_SEXO == "M") | (CS_SEXO == "F"))
+dados <- subset(dados, (CS_RACA == "1") | (CS_RACA == "2") | (CS_RACA == "3") | (CS_RACA == "4") | (CS_RACA == "5"))
+dados
+
+# Número de casos = 6823
+```
+
+```{r}
+write_xlsx(dados,paste(dirname(getwd()),"/exportacoes/sragMga.xlsx", sep=""))
+```
+
+```{r}
+# Explicita as semanas epidemiologicas segundo ano de notificação
+
+dados$ANO_NOTIFIC <- year(dmy(dados$DT_NOTIFIC))
+dados$ANO_SEM <- paste(dados$ANO_NOTIFIC,formatC(dados$SEM_NOT, width=2, format="d", flag="0"), sep="/")
+
+# Tratamento de idade em anos e faixa etária
+
+dados$IDADE <- trunc(ifelse(dados$TP_IDADE == 1 & dados$NU_IDADE_N > 0,  dados$NU_IDADE_N/365, ifelse(dados$TP_IDADE == 2 & dados$NU_IDADE_N > 0,  dados$NU_IDADE_N/12, dados$NU_IDADE_N)))
+dados$FAIXA_ETARIA <- ifelse(dados$IDADE < 18, "[0,17] Jovens", ifelse(dados$IDADE >=60, "[60+] Idosos", "[18,59] Adultos")) 
+
+# Identifica as categorias de Raça/Cor
+
+dados$RACACOR <- ifelse(dados$CS_RACA == 1, "Branca", ifelse(dados$CS_RACA == 2, "Preta", ifelse(dados$CS_RACA == 3, "Amarela", ifelse(dados$CS_RACA == 4, "Parda", "Indígena"))))
+
+# Definição de caso grave
+
+dados$CASO_GRAVE <- ifelse((dados$UTI == 2) | (dados$SUPORT_VEN == 2) | (dados$SUPORT_VEN == 3), 2, 1)
+
+# Cria dataframe para casos graves e casos moderados
+
+casosGraves <- subset(dados, (CASO_GRAVE == 1))
+casosModerados <- subset(dados, (CASO_GRAVE == 2))
+
+# Plotagem de grafico de casos hospitalizados e graves por semana epidemiologica
+
+barplot(t(table(dados$ANO_SEM,dados$CASO_GRAVE)),col= c("darkred","darkblue"), border = FALSE, ylim = c(0,350), xlab = "Semana epidemiológica", ylab = "Número de casos (Fi)", main = "Casos de SRAG confirmados para COVID-19 no município de Maringá ")
+```
+
+```{r}
+png(paste(dirname(getwd()),"/exportacoes/casosHospitalizadosGravesSegundoSemanaEpidemiologica.png", sep=""), res = 300, width = 4200, height = 2400)
+barplot(t(table(dados$ANO_SEM,dados$CASO_GRAVE)),col= c("darkred","darkblue"),border = FALSE, ylim = c(0,350), xlab = "Semana epidemiológica segundo ano de notificação", ylab = "Número de casos hospitalizados e graves (Fi)",main = "Casos de SRAG confirmados para COVID-19 no município de Maringá/PR segundo Semana Epidemiológica")
+```
+
+```{r}
+scatter.smooth(table(dados$IDADE), xlab = "Idade (Anos)", col = "darkblue", type = "p",ylab = "Número de casos (Fi)", main = "Casos hospitalizados por COVID-19 segundo idade (Maringá/PR)")
+```
+
+```{r}
+png(paste(dirname(getwd()),"/exportacoes/idadeHospitalizados.png", sep=""), res = 300, width = 4200, height = 2400)
+scatter.smooth(table(dados$IDADE), xlab = "Idade (Anos)", col = "darkblue", type = "p",ylab = "Número de casos (Fi)", main = "Casos hospitalizados decorrentes da COVID-19 segundo Idade no município de Maringá/PR")
+```
+
+```{r}
+boxplot(dados$IDADE ~ dados$FAIXA_ETARIA, xlab = "Faixa Etária", ylab = "Idade (Anos)", main = "Faixa etária dos hospitalizados por COVID-19 (Maringá/PR)")
+```
+
+
+```{r}
+png(paste(dirname(getwd()),"/exportacoes/faixaEtariaHospitalizados.png", sep=""), res = 300, width = 4200, height = 2400)
+boxplot(dados$IDADE ~ dados$FAIXA_ETARIA, xlab = "Faixa Etária", ylab = "Idade (Anos)", main = "Faixa etária dos hospitalizados decorrentes da COVID-19 no município de Maringá/PR")
+```
+
+
+```{r}
+boxplot(casosModerados$IDADE ~ casosModerados$FAIXA_ETARIA, xlab = "Faixa Etária", ylab = "Idade (Anos)", main = "Faixa etária dos casos moderados por COVID-19 (Maringá/PR)")
+```
+
+
+```{r}
+png(paste(dirname(getwd()),"/exportacoes/faixaEtariaModerados.png", sep=""), res = 300, width = 4200, height = 2400)
+boxplot(casosModerados$IDADE ~ casosModerados$FAIXA_ETARIA, xlab = "Faixa Etária", ylab = "Idade (Anos)", main = "Faixa etária dos casos sem internação intensiva decorrentes da COVID-19 no município de Maringá/PR")
+```
+
+
+```{r}
+boxplot(casosGraves$IDADE ~ casosGraves$FAIXA_ETARIA, xlab = "Faixa Etária", ylab = "Idade (Anos)", main = "Faixa etária dos casos graves por COVID-19 (Maringá/PR)")
+```
+
+
+```{r}
+png(paste(dirname(getwd()),"/exportacoes/faixaEtariaGraves.png", sep=""), res = 300, width = 4200, height = 2400)
+boxplot(casosGraves$IDADE ~ casosGraves$FAIXA_ETARIA, xlab = "Faixa Etária", ylab = "Idade (Anos)", main = "Faixa etária dos casos com internação intensiva decorrentes da COVID-19 no município de Maringá/PR")
+```
+
+```{r}
+png(paste(dirname(getwd()),"/exportacoes/sexoHospitalizados.png", sep=""), res = 300, width = 2400, height = 2400)
+pie(table(dados$CS_SEXO), col= c("darkred","darkblue"), main = "Sexo dos hospitalizados por COVID-19 (Maringá/PR)")
+legend("bottomleft", c("Feminino","Masculino"), cex = 0.8, fill = c("darkred","darkblue"))
+```
+
+
+```{r}
+pie(table(dados$CS_SEXO), col= c("darkred","darkblue"), main = "Sexo dos hospitalizados por COVID-19 (Maringá/PR)")
+legend("bottomleft", c("Feminino","Masculino"), cex = 0.8, fill = c("darkred","darkblue"))
+```
+
+```{r}
+png(paste(dirname(getwd()),"/exportacoes/sexoModerados.png", sep=""), res = 300, width = 2400, height = 2400)
+
+pie(table(casosModerados$CS_SEXO), col= c("darkred","darkblue"), main = "Sexo dos casos moderados por COVID-19 (Maringá/PR)")
+legend("bottomleft", c("Feminino","Masculino"), cex = 0.8, fill = c("darkred","darkblue"))
+```
+
+
+```{r}
+pie(table(casosModerados$CS_SEXO), labels = ,col= c("darkred","darkblue"), main = "Sexo dos casos moderados por COVID-19 (Maringá/PR)")
+legend("bottomleft", c("Feminino","Masculino"), cex = 0.8, fill = c("darkred","darkblue"))
+```
+
+```{r}
+png(paste(dirname(getwd()),"/exportacoes/sexoGraves.png", sep=""), res = 300, width = 2400, height = 2400)
+pie(table(casosGraves$CS_SEXO), col= c("darkred","darkblue"), main = "Sexo dos casos graves por COVID-19 (Maringá/PR)")
+legend("bottomleft", c("Feminino","Masculino"), cex = 0.8, fill = c("darkred","darkblue"))
+```
+
+
+```{r}
+pie(table(casosGraves$CS_SEXO), col= c("darkred","darkblue"), main = "Sexo dos casos graves por COVID-19 (Maringá/PR)")
+legend("bottomleft", c("Feminino","Masculino"), cex = 0.8, fill = c("darkred","darkblue"))
+```
+
+```{r}
+png(paste(dirname(getwd()),"/exportacoes/racaHospitalizados.png", sep=""), res = 300, width = 4200, height = 2400)
+barplot(table(dados$RACACOR),col= c("yellow", "darkgreen", "purple", "darkcyan","darkblue"), horiz= TRUE, border = FALSE, xlab = "Número de casos (Fi)", main = "Raça/Cor dos casos hospitalizados por COVID-19 (Maringá/PR)",las=1)
+```
+
+```{r}
+png(paste(dirname(getwd()),"/exportacoes/racaModerados.png", sep=""), res = 300, width = 4200, height = 2400)
+barplot(table(casosModerados$RACACOR),col= c("yellow", "darkgreen", "purple", "darkcyan","darkblue"), horiz= TRUE, border = FALSE, xlab = "Número de casos (Fi)", main = "Raça/Cor dos casos moderados por COVID-19 (Maringá/PR)",las=1)
+```
+
+```{r}
+png(paste(dirname(getwd()),"/exportacoes/racaGraves.png", sep=""), res = 300, width = 4200, height = 2400)
+barplot(table(casosGraves$RACACOR),col= c("yellow", "darkgreen", "darkcyan","darkblue"), horiz= TRUE, border = FALSE, xlab = "Número de casos (Fi)", main = "Raça/Cor dos casos graves por COVID-19 (Maringá/PR)",las=1)
+```
